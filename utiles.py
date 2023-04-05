@@ -10,7 +10,7 @@ def save_img(input_img, output_path_, index):
 def save_tensor(input_img, output_path_, index):
     save_image(input_img, output_path_ + "/" + "result_" + str(index) + ".jpg")
 
-def LaplacianValue(input_img, THRESHOLD = 100.0):
+def LaplacianValue(input_img):
     gray = input_img
 
     gaussian = cv2.GaussianBlur(gray, (3, 3), 1)
@@ -18,7 +18,7 @@ def LaplacianValue(input_img, THRESHOLD = 100.0):
     # if not imageVar < THRESHOLD:
         # im_name = '(' + input_path_.split('(')[1]
         # print(im_name,' ',imageVar)
-    print("Laplacian=" + " " + str(imageVar))
+    # print("Laplacian=" + " " + str(imageVar))
     
     return imageVar
 

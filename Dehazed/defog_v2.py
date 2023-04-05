@@ -34,18 +34,25 @@ def get_min_channel(img):
     return np.min(img,axis=2)
 def min_filter(img,r):
     kernel = np.ones((2*r-1,2*r-1))
-    return cv2.erode(img,kernel)    #最小值滤波器，可用腐蚀替代
+    return cv2.erode(img,kernel)    # 最小值滤波器，可用腐蚀替代
 def get_A(img_haze,dark_channel,bins_l):
-    hist,bins = np.histogram(dark_channel,bins=bins_l)  #得到直方图
-    d = np.cumsum(hist)/float(dark_channel.size)    #累加
-    # print(bins)
+
+    hist,bins = np.histogram(dark_channel,bins=bins_l)  # 得到直方图
+    d = np.cumsum(hist)/float(dark_channel.size)    # 累加
     threshold=0
+
+    # 设定一个阈值（220，归一化后的值约为0.86）
+    MAX_A = 0.86
     for i in range(bins_l-1,0,-1):
         if d[i]<=0.999:
             threshold=i
             break
-    A = img_haze[dark_channel>=bins[threshold]].max()
-    #候选区域可视化
+    A = img_haze[dark_channel>=bins[threshold]].mean()
+
+    # 设定一个阈值（220，归一化后的值约为0.86），防止全局大气光值过大（255）
+    if A >= MAX_A:
+        A = MAX_A
+    # 候选区域可视化
     show  = np.copy(img_haze)
     show[dark_channel>=bins[threshold]] = 0,0,255
     # cv2.imwrite('./most_haze_opaque_region.jpg',show*255)
@@ -53,8 +60,8 @@ def get_A(img_haze,dark_channel,bins_l):
 def get_t(img_haze,A,t0=0.1,w=0.95):
     out = get_min_channel(img_haze)
     out = min_filter(out,r=7)
-    t = 1-w*out/A #需要乘上一系数w，为远处的物体保留少量的雾
-    t = np.clip(t,t0,1)#论文4.4所提到t(x)趋于0容易产生噪声，所以设置一最小值0.1
+    t = 1-w*out/A   # 需要乘上一系数w，为远处的物体保留少量的雾
+    t = np.clip(t,t0,1) # 论文提到t(x)趋于0容易产生噪声，所以设置一最小值0.1
     return t
 
 # PSNR评估
@@ -63,7 +70,7 @@ def get_t(img_haze,A,t0=0.1,w=0.95):
 # 在20—30dB说明图像质量差；
 # 最后，PSNR低于20dB图像不可接受
 def PSNR(target,ref):
-    #必须归一化
+    # 必须归一化
     target=target/255.0
     ref=ref/255.0
     MSE = np.mean((target-ref)**2)
@@ -83,7 +90,7 @@ def deFogging(input_img):
 
     t = get_t(I,A)
     t = guided_filter(dark_channel,t,81,0.001)
-    t = t[:,:,np.newaxis].repeat(3,axis=2)#升维至(r,w,3)
+    t = t[:,:,np.newaxis].repeat(3,axis=2)  #升维至(r,w,3)
 
     J = (I-A)/t +A
 
@@ -95,11 +102,11 @@ def deFogging(input_img):
     output_img = J
 
     psnr = PSNR(J,I*255)
-    print(f"PSNR:{psnr}")
+    # print(f"PSNR:{psnr}")
 
     # ssim评估，值越接近1图像相似度越高
-    ssim = sk_cpt_ssim(J,I*255, win_size=11, data_range=255, multichannel=True)
-    print(f"ssim:{ssim}")
+    ssim = sk_cpt_ssim(J,I*255, win_size=11, data_range=255, channel_axis=2)
+    # print(f"ssim:{ssim}")
 
     return output_img
 
